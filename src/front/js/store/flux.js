@@ -1,28 +1,83 @@
 //
 import React, {useState} from 'react';
+
 const getState = ({getStore, getActions, setStore}) => {
     return {
         store: {
             message: null,
             auth: false,
-            numero: 0,
-            accessToken: false
+            isAdmin: false
         },
         actions: {
 
-            // ? Esta función cambia el estado del auth
-            valid_token: () => {
-                const token = localStorage.getItem('token');
-                if (token === null) {
-                    setStore({auth: false})
-                } else {
-                    setStore({auth: true})
+
+            // ? Esta función permite verificar permanentemente si el token es válido
+            validToken: async () => {
+                try {
+                    const token = localStorage.getItem("token");
+                    if (! token) {
+                        setStore({auth: false});
+                        return;
+                    }
+
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        "Authorization": `Bearer ${token}`
+                    };
+
+                    const response = await fetch("https://3001-lolamartvar-ricuritastr-pvbzkm387ea.ws-us86.gitpod.io/api/verify-token-validity", {
+                        method: "GET",
+                        headers: headers
+                    });
+
+                    if (response.status !== 200) {
+                        setStore({auth: false});
+                        return;
+                    }
+
+                    setStore({auth: true});
+                } catch (error) {
+                    console.error(error);
                 }
             },
 
+            // ? Esta función nos permite verificar de forma permanente si quién está logueado es admin o no lo es
+            getUserRole: async () => {
+                try {
+                    const token = localStorage.getItem("token");
+                    if (! token) {
+                        setStore({isAdmin: false});
+                        return;
+                    }
+
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        "Authorization": `Bearer ${token}`
+                    };
+
+                    const response = await fetch("https://3001-lolamartvar-ricuritastr-pvbzkm387ea.ws-us86.gitpod.io/api/get-user-role", {
+                        method: "GET",
+                        headers: headers
+                    });
+
+                    if (response.status !== 200) {
+                        setStore({isAdmin: false});
+                        return;
+                    }
+
+                    const data = await response.json();
+                    setStore({
+                        isAdmin: data.role === 'admin'
+                    });
+                } catch (error) {
+                    console.error(error);
+                }
+            },
+
+
             // ? Acá empieza el fetch que nos permite conectar con el BackEnd
             login: (userEmail, userPassword) => {
-                fetch('https://3001-lolamartvar-ricuritastr-pvbzkm387ea.ws-us85.gitpod.io/api/login', {
+                fetch('https://3001-lolamartvar-ricuritastr-pvbzkm387ea.ws-us86.gitpod.io/api/login', {
                     method: 'POST',
                     // mode: 'no-cors',
                     headers: {
@@ -41,11 +96,11 @@ const getState = ({getStore, getActions, setStore}) => {
 
                     return response.json()
                 }).then((data) => {
-                    const adminData = data.is_admin;
                     localStorage.setItem('token', data.access_token)
-                    if (adminData === true) {
-                        localStorage.setItem('admin', "34åÇkJhdkKhdf0'=)(675684fsg45sg744fs65g468sf4gJVvghhjksdfg8?=)(/$%32&ujsfdgjuibdgijk")
-                    }
+                    // const adminData = data.is_admin;
+                    // if (adminData === true) {
+                    //     localStorage.setItem('admin', "34åÇkJhdkKhdf0'=)(675684fsg45sg744fs65g468sf4gJVvghhjksdfg8?=)(/$%32&ujsfdgjuibdgijk")
+                    // }
 
                 }).catch((err) => {
                     console.log(err);
@@ -58,7 +113,7 @@ const getState = ({getStore, getActions, setStore}) => {
 
             // Acá está la función de crear un nuevo usuario
             register: (userEmail, userName, userNombre, userApellido, userPassword) => {
-                fetch('https://3001-lolamartvar-ricuritastr-pvbzkm387ea.ws-us85.gitpod.io/api/user', {
+                fetch('https://3001-lolamartvar-ricuritastr-pvbzkm387ea.ws-us86.gitpod.io/api/user', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -80,12 +135,9 @@ const getState = ({getStore, getActions, setStore}) => {
                     return response.json()
                 }).catch((err) => console.log(err))
             },
-
-
             exampleFunction: () => {
                 getActions().changeColor(0, "green");
             },
-
             getMessage: async () => {
                 try { // fetching data from the backend
                     const resp = await fetch(process.env.BACKEND_URL + "/api/hello")
@@ -97,8 +149,6 @@ const getState = ({getStore, getActions, setStore}) => {
                     console.log("Error loading message from backend", error)
                 }
             },
-
-
             changeColor: (index, color) => { // get the store
                 const store = getStore();
 
